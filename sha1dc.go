@@ -9,8 +9,7 @@ package sha1dc
 // #include <stdlib.h>
 import "C"
 import (
-	"fmt"
-	"hash"
+	"errors"
 )
 
 // The size of a SHA-1 checksum in bytes.
@@ -19,7 +18,7 @@ const Size = 20
 // The blocksize of SHA-1 in bytes.
 const BlockSize = 64
 
-func New() hash.Hash {
+func New() *digest {
 	d := new(digest)
 	d.Reset()
 	return d
@@ -36,12 +35,17 @@ func (d *digest) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (d *digest) Sum(b []byte) []byte {
-	// TODO: Don't modify underlying ctx
+var ErrSHA1Collision = errors.New("detected a possible SHA1 collision")
+
+func (d *digest) Finalize() ([]byte, error) {
 	b := make([]byte, 20)
 	cHashPtr := C.CBytes(b)
 	x := C.SHA1DCFinal((*C.uchar)(cHashPtr),&d.ctx)
 	val := C.GoBytes(cHashPtr, 20)
+	if x != 0 {
+		return nil, ErrSHA1Collision
+	}
+	return val, nil
 }
 
 func (d *digest) Reset() {
@@ -51,22 +55,3 @@ func (d *digest) Reset() {
 func (d *digest) Size() int { return Size }
 
 func (d *digest) BlockSize() int { return BlockSize }
-
-var _ hash.Hash = (*digest)(nil)
-
-func main() {
-
-
-	var ctx C.SHA1_CTX
-	b := make([]byte, 20)
-	C.SHA1DCInit(&ctx)
-
-	data := []byte("abc123\r\n")
-	cDataPtr := (*C.char)(C.CBytes(data))
-	C.SHA1DCUpdate(&ctx, cDataPtr, (C.ulonglong)(len(data)))
-	cHashPtr := C.CBytes(b)
-	x := C.SHA1DCFinal((*C.uchar)(cHashPtr),&ctx)
-	val := C.GoBytes(cHashPtr, 20)
-	fmt.Printf("output %v\n", x)
-	fmt.Printf("hash %x\n", val)
-}
