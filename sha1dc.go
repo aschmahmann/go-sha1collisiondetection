@@ -40,7 +40,7 @@ var ErrSHA1Collision = errors.New("detected a possible SHA1 collision")
 func (d *digest) Finalize() ([]byte, error) {
 	b := make([]byte, 20)
 	cHashPtr := C.CBytes(b)
-	x := C.SHA1DCFinal((*C.uchar)(cHashPtr),&d.ctx)
+	x := C.SHA1DCFinal((*C.uchar)(cHashPtr), &d.ctx)
 	val := C.GoBytes(cHashPtr, 20)
 	if x != 0 {
 		return nil, ErrSHA1Collision
